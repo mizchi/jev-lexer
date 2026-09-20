@@ -1,0 +1,83 @@
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.12.3#/Taskfile.pkl"
+
+local sources: Listing<String> = new {
+  "src/**/*.ts"
+  "test/**/*.ts"
+  "eval/**/*.ts"
+  "bench/*.ts"
+  "package.json"
+  "tsconfig.json"
+  "tsconfig.check.json"
+}
+
+local typecheck: Task = new {
+  name = "typecheck"
+  description = "tsc over src, test, eval and bench"
+  cmd = "pnpm exec tsc -p tsconfig.check.json"
+  inputs = sources
+}
+
+local test: Task = new {
+  name = "test"
+  description = "node:test over test/*.test.ts (no API key needed)"
+  cmd = "node --experimental-strip-types --test test/*.test.ts"
+  inputs = sources
+}
+
+local build: Task = new {
+  name = "build"
+  description = "Emit dist/"
+  cmd = "pnpm run build"
+  inputs = sources
+  outputs { "dist/**" }
+}
+
+local evalReplay: Task = new {
+  name = "eval:replay"
+  description = "Recompute eval metrics from eval/baseline.json, no requests"
+  cmd = "node --experimental-strip-types src/cli.ts eval --replay"
+  inputs { "src/**/*.ts"; "eval/**/*" }
+}
+
+local secretlint: Task = new {
+  name = "lint:secretlint"
+  description = "Run secretlint against files in the diff about to be pushed"
+  cmd =
+    #"""
+    set -euo pipefail
+    upstream=$(git rev-parse --symbolic-full-name '@{push}' 2>/dev/null \
+            || git rev-parse --symbolic-full-name '@{u}' 2>/dev/null \
+            || true)
+    emit_files() {
+      if [ -n "$upstream" ]; then
+        git diff --name-only --diff-filter=ACMR -z "${upstream}..HEAD"
+      else
+        git ls-files -z
+      fi
+    }
+    if [ -z "$(emit_files | tr -d '\0')" ]; then
+      exit 0
+    fi
+    emit_files | xargs -0 pnpm exec secretlint --
+    """#
+  cache = false
+  inputs { ".secretlintrc.json"; "package.json"; "pnpm-lock.yaml" }
+}
+
+local ci: Task = new {
+  name = "ci"
+  description = "typecheck + test + build + eval replay"
+  cmd = "echo ci ok"
+  cache = false
+  deps { typecheck; test; build; evalReplay }
+}
+
+local prePush: Task = new {
+  name = "pre-push"
+  description = "Pre-push gate: secretlint + typecheck + test"
+  cmd = "echo pre-push ok"
+  cache = false
+  deps { secretlint; typecheck; test }
+}
+
+tasks { typecheck; test; build; evalReplay; secretlint; ci; prePush }

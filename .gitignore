@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.jev-lexer-cache.json
+*.log
+.DS_Store
