@@ -52,6 +52,7 @@ export async function runBench(args: CliArgs): Promise<number> {
   lines.push("| --- | ---: | ---: | ---: | ---: | ---: |");
   lines.push("| Shiki (truth) | 100.00% | 100.00% | 0.00% | - | - |");
   for (const arm of ARMS) {
+    if (!jev[arm]) continue;
     const t = jev[arm].total;
     const s = rec.spent[arm];
     lines.push(
@@ -64,10 +65,16 @@ export async function runBench(args: CliArgs): Promise<number> {
   lines.push("");
   lines.push("| language | jev bare | jev named | gpu-lexer |");
   lines.push("| --- | ---: | ---: | ---: |");
-  for (const lang of Object.keys(jev.bare.perLang).sort()) {
+  const armPct = (arm: (typeof ARMS)[number], pick: (s: Score) => number, lang?: string) => {
+    const r = jev[arm];
+    if (!r) return "-";
+    const s = lang ? r.perLang[lang] : r.total;
+    return s ? pct(pick(s)) : "-";
+  };
+  for (const lang of Object.keys((jev.bare ?? jev.named).perLang).sort()) {
     const g = hasGpu ? combine(gpuByLang[lang] ?? []) : null;
     lines.push(
-      `| ${lang} | ${pct(jev.bare.perLang[lang]!.agreement)} | ${pct(jev.named.perLang[lang]?.agreement ?? 0)} | ${g ? pct(g.agreement) : "-"} |`,
+      `| ${lang} | ${armPct("bare", (s) => s.agreement, lang)} | ${armPct("named", (s) => s.agreement, lang)} | ${g ? pct(g.agreement) : "-"} |`,
     );
   }
   lines.push("");
@@ -75,7 +82,7 @@ export async function runBench(args: CliArgs): Promise<number> {
   lines.push("| --- | ---: | ---: | ---: |");
   for (const c of TOKEN_CLASSES) {
     lines.push(
-      `| ${c} | ${pct(jev.bare.total.perClass[c].f1)} | ${pct(jev.named.total.perClass[c].f1)} | ${gpuTotal ? pct(gpuTotal.perClass[c].f1) : "-"} |`,
+      `| ${c} | ${armPct("bare", (s) => s.perClass[c].f1)} | ${armPct("named", (s) => s.perClass[c].f1)} | ${gpuTotal ? pct(gpuTotal.perClass[c].f1) : "-"} |`,
     );
   }
   const report = lines.join("\n") + "\n";

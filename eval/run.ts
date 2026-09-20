@@ -85,12 +85,12 @@ function spendDelta(after: Spend, before: Spend): Spend {
   };
 }
 
-export async function record(files: CorpusFile[], repeat: number): Promise<Recording> {
+export async function record(files: CorpusFile[], repeat: number, arms: Arm[] = ARMS): Promise<Recording> {
   const client = new Jev();
   const labels = { bare: {}, named: {} } as Recording["labels"];
   const unanswered = { bare: 0, named: 0 };
   const spent = {} as Record<Arm, Spend>;
-  for (const arm of ARMS) {
+  for (const arm of arms) {
     const before = { ...client.spent };
     for (const f of files) {
       const passes: Array<Array<TokenClass | null>> = [];
@@ -125,6 +125,7 @@ export interface ArmReport {
 export async function scoreRecording(files: CorpusFile[], rec: Recording): Promise<Record<Arm, ArmReport>> {
   const out = {} as Record<Arm, ArmReport>;
   for (const arm of ARMS) {
+    if (!rec.spent[arm]) continue;
     const perFile: Record<string, Score> = {};
     const byLang: Record<string, Score[]> = {};
     for (const f of files) {
@@ -154,6 +155,7 @@ export function renderReport(rec: Recording, report: Record<Arm, ArmReport>): st
   lines.push("| arm | supervised parts | agreement | macro F1 | plain false-colour | unanswered | requests | input tokens | USD | ms |");
   lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const arm of ARMS) {
+    if (!report[arm]) continue;
     const t = report[arm].total;
     const s = rec.spent[arm];
     lines.push(
@@ -163,12 +165,14 @@ export function renderReport(rec: Recording, report: Record<Arm, ArmReport>): st
   lines.push("");
   lines.push("| language | bare agreement | named agreement | bare F1 | named F1 |");
   lines.push("| --- | ---: | ---: | ---: | ---: |");
-  for (const lang of Object.keys(report.bare.perLang).sort()) {
-    const b = report.bare.perLang[lang]!;
-    const n = report.named.perLang[lang];
-    lines.push(`| ${lang} | ${pct(b.agreement)} | ${n ? pct(n.agreement) : "-"} | ${pct(b.macroF1)} | ${n ? pct(n.macroF1) : "-"} |`);
+  const first = report.bare ?? report.named;
+  for (const lang of Object.keys(first.perLang).sort()) {
+    const b = report.bare?.perLang[lang];
+    const n = report.named?.perLang[lang];
+    lines.push(`| ${lang} | ${b ? pct(b.agreement) : "-"} | ${n ? pct(n.agreement) : "-"} | ${b ? pct(b.macroF1) : "-"} | ${n ? pct(n.macroF1) : "-"} |`);
   }
   for (const arm of ARMS) {
+    if (!report[arm]) continue;
     lines.push("");
     lines.push(`confusion (${arm}), rows = shiki, columns = jev-lexer`);
     const classes = Object.keys(report[arm].total.perClass) as TokenClass[];
@@ -198,11 +202,12 @@ export async function runEval(args: CliArgs): Promise<number> {
       process.stderr.write(`no API key; set ${API_KEY_VARS[0]} or use --replay\n`);
       return 2;
     }
-    rec = await record(files, args.repeat);
+    const arms = args.arms.filter((a): a is Arm => (ARMS as string[]).includes(a));
+    rec = await record(files, args.repeat, arms);
     await writeFile(BASELINE, JSON.stringify(rec));
     process.stderr.write(`recorded ${BASELINE}\n`);
   }
   const report = await scoreRecording(files, rec);
   process.stdout.write(renderReport(rec, report));
-  return rec.unanswered.bare + rec.unanswered.named > 0 ? 3 : 0;
+  return (rec.unanswered.bare ?? 0) + (rec.unanswered.named ?? 0) > 0 ? 3 : 0;
 }

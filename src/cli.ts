@@ -37,6 +37,7 @@ export interface CliArgs {
   replay: boolean;
   repeat: number;
   minConfidence: number;
+  arms: string[];
 }
 
 export function parseCli(argv: string[]): CliArgs {
@@ -57,6 +58,7 @@ export function parseCli(argv: string[]): CliArgs {
       replay: { type: "boolean", default: false },
       repeat: { type: "string", default: "1" },
       "min-confidence": { type: "string", default: "0" },
+      arms: { type: "string", default: "bare,named" },
     },
   });
   const first = positionals[0] ?? null;
@@ -75,6 +77,7 @@ export function parseCli(argv: string[]): CliArgs {
     replay: values.replay!,
     repeat: Math.max(1, Number.parseInt(values.repeat!, 10) || 1),
     minConfidence: Number.parseFloat(values["min-confidence"]!) || 0,
+    arms: values.arms!.split(",").map((a) => a.trim()).filter(Boolean),
   };
 }
 
