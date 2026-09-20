@@ -8,7 +8,9 @@
  * Exit codes: 0 ok, 2 configuration error (no key, bad theme, missing
  * file), 3 requests failed (unanswered > 0).
  */
+import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { AnswerCache } from "./cache.ts";
 import { QUESTION_STYLES, type QuestionStyle, type TokenClass } from "./classes.ts";
@@ -175,8 +177,12 @@ async function renderCompare(code: string, args: CliArgs, theme: ThemeRegistrati
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   const args = parseCli(argv);
   try {
-    if (args.command === "eval") return (await import("../eval/run.ts")).runEval(args);
-    if (args.command === "bench") return (await import("../bench/run.ts")).runBench(args);
+    if (args.command === "eval" || args.command === "bench") {
+      // Development commands: eval/ and bench/ ship in the repository, not in the npm package.
+      const mod = await (args.command === "eval" ? import("../eval/run.ts") : import("../bench/run.ts")).catch(() => null);
+      if (!mod) throw new ExitError(2, `${args.command} runs from a checkout of the repository, not from the installed package`);
+      return "runEval" in mod ? mod.runEval(args) : mod.runBench(args);
+    }
     return await highlight(args);
   } catch (err: unknown) {
     if (err instanceof ExitError) {
@@ -191,7 +197,18 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+/** Run when executed directly — also through the bin symlink, hence the realpath. */
+function isMain(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return import.meta.url === pathToFileURL(realpathSync(entry)).href;
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) {
   main().then((code) => {
     process.exitCode = code;
   });

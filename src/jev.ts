@@ -62,7 +62,7 @@ export const API_KEY_VARS = ["TYPESAFE_API_KEY", "TYPESAFEAI_API_KEY"] as const;
 export const BASE_URL_VARS = ["TYPESAFE_BASE_URL", "TYPESAFEAI_BASE_URL"] as const;
 
 /** First of these variables that is set and non-empty. */
-export function fromEnv(names: readonly string[], env = process.env): string | null {
+export function fromEnv(names: readonly string[], env: Record<string, string | undefined> = process.env): string | null {
   for (const n of names) {
     const v = env[n];
     if (typeof v === "string" && v.trim() !== "") return v.trim();
