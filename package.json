@@ -2,19 +2,39 @@
   "name": "jev-lexer",
   "version": "0.0.1",
   "description": "Language-agnostic syntax highlighter: split like gpu-lexer, classify every part with Jev, render Shiki-compatible tokens, HTML and ANSI",
-  "keywords": ["syntax-highlighting", "shiki", "jev", "lexer", "gpu-lexer"],
+  "keywords": [
+    "syntax-highlighting",
+    "shiki",
+    "jev",
+    "lexer",
+    "gpu-lexer"
+  ],
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/mizchi/jev-lexer.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mizchi/jev-lexer.git"
+  },
   "type": "module",
-  "engines": { "node": ">=24" },
-  "bin": { "jev-lexer": "dist/src/cli.js" },
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "jev-lexer": "dist/src/cli.js"
+  },
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/src/index.d.ts", "default": "./dist/src/index.js" },
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc && node -e \"require('fs').chmodSync('dist/src/cli.js', 0o755)\"",
     "typecheck": "tsc -p tsconfig.check.json",
@@ -23,7 +43,8 @@
     "eval": "node --experimental-strip-types src/cli.ts eval",
     "eval:replay": "node --experimental-strip-types src/cli.ts eval --replay",
     "bench": "node --experimental-strip-types src/cli.ts bench",
-    "bench:replay": "node --experimental-strip-types src/cli.ts bench --replay"
+    "bench:replay": "node --experimental-strip-types src/cli.ts bench --replay",
+    "demo": "node --experimental-strip-types docs/demo/render.ts"
   },
   "dependencies": {
     "@shikijs/core": "^4.4.3",
@@ -32,6 +53,7 @@
   "devDependencies": {
     "@secretlint/secretlint-rule-preset-recommend": "^9.0.0",
     "@types/node": "^24.0.0",
+    "playwright": "1.58.2",
     "secretlint": "^9.0.0",
     "shiki": "^4.4.3",
     "typescript": "^5.9.0"

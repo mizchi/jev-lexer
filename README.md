@@ -20,6 +20,16 @@ $ jev-lexer src/split.ts --html > out.html
 6 request(s), 335,799 input tokens, $0.01410, 9103 ms; 0 unanswered
 ```
 
+![Shiki with the language known, and jev-lexer with nothing but the text, on the first 34 lines of eval/corpus/ts/session.ts](docs/demo/session-ts.png)
+
+Left: Shiki, `lang: ts`. Right: jev-lexer, no language, no file name,
+drawn from the recorded eval answers. The visible differences are the
+taxonomy, not the model: gpu-lexer's nine classes fold punctuation into
+`operator`, which this theme paints red where Shiki leaves `;` and `{`
+in the foreground colour, and an ALL_CAPS binding like `TTL_MS` is
+plain here because that is how the reference labels it in TypeScript.
+`node --experimental-strip-types docs/demo/render.ts` redraws it.
+
 ## Install
 
 ```bash
@@ -205,6 +215,7 @@ pnpm eval               # records eval/baseline.json (needs the key, ~$0.36 for 
 pnpm eval:replay        # the same table from the recording, no key
 pnpm bench              # rewrites bench/report.md from the recording + gpu-lexer on the CPU
 pkf run ci              # typecheck + test + build + both replays
+pnpm demo               # redraws docs/demo/session-ts.png from the recording (Playwright)
 ```
 
 `bench/vendor/gpu-lexer` is a git submodule pinned to
