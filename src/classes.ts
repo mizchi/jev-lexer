@@ -49,9 +49,93 @@ export const CRITERIA: Record<TokenClass, string> = {
 export const TASK =
   "Classify the source part identified below for syntax highlighting, the way a TextMate-grammar highlighter (Shiki) would label it. Judge by its role in the surrounding code: a word inside a string literal or a comment takes that class, not its own. The part is one word run or one symbol character; multi-character operators arrive one character at a time.";
 
+/**
+ * How a question carries the class definitions.
+ *
+ *   full    every question repeats CRITERIA in its `criteria` — about
+ *           1,100 input tokens a question, definitions always in view.
+ *   compact the same rules as `full` in fewer words, no legend.
+ *   legend  the definitions travel once per request as `state.legend`
+ *           and each question's `criteria` is the one-line SHORT_CRITERIA.
+ *   lean    legend plus the task sentence in the state too; a question
+ *           carries a one-line task and LEAN_CRITERIA of a few words.
+ *
+ * The eval measures both; `full` is the default until it says otherwise.
+ */
+export const QUESTION_STYLES = ["full", "compact", "legend", "lean"] as const;
+export type QuestionStyle = (typeof QUESTION_STYLES)[number];
+
+/** One line per class, for the `legend` style; the full text is in the state. */
+export const SHORT_CRITERIA: Record<TokenClass, string> = {
+  plain: "identifier, variable, property, this/self, HTML attribute name, or nothing else applies",
+  comment: "inside a comment, including its marker",
+  string: "inside a string, template, regexp, docstring or heredoc literal, including quotes",
+  number: "a numeric literal or one part of one",
+  keyword: "a reserved or structural word, an HTML tag name, a CSS at-rule",
+  type: "a type name, a generic type parameter, or a CSS property name",
+  function: "a function, method, command or CSS function name being declared or called",
+  constant: "true/false/null/nil/None/undefined, an ALL_CAPS constant in Python or Rust, a CSS colour",
+  operator: "an operator or punctuation character outside strings and comments",
+};
+
+/** The rules of CRITERIA in fewer words, for the `compact` style. */
+export const COMPACT_CRITERIA: Record<TokenClass, string> = {
+  plain:
+    "Identifiers, variables, parameters, properties, labels; this/self/Self/super; HTML attribute names; ALL_CAPS names in TS/JS/Go; CSS custom properties (--gap, hyphens included); in TS/JS the ( ) of a call, condition or grouping and the [ ] of an index or T[].",
+  comment:
+    "Text after a comment marker (// /* */ # -- <!-- ;), marker included, whatever the words. Docstrings and heredocs are string, not comment.",
+  string:
+    "Any part of a string, char, template, regexp, docstring or heredoc, quotes and escapes included; keywords or numbers inside quotes are string; JSON keys are string; in shell a quoted string is string throughout, $VAR and ${VAR} included. In JS/TS templates only the text: ${ and } are operator and the expression inside is classified on its own.",
+  number:
+    "A numeric literal or part of one: 42, 3.14, 0xFF, 1_000, 1e9, 1rem, exponents, units, suffixes. Not digits inside an identifier or a string.",
+  keyword:
+    "Reserved or structural words: if else for while return match const let var fn def class struct enum import export pub async await static public mut; Go's int/string/error; an HTML tag name after < or </; a CSS element selector; CSS at-rules like @media.",
+  type:
+    "A type name in a declaration or annotation (String, Vec, Promise), a generic parameter (T, K, V), built-in type words used as types in Python/Rust/TS, and a CSS property name (display, margin-top, hyphens included).",
+  function:
+    "A function or method name being declared or called (the word before an argument list), a shell command name, a CSS function like var or calc.",
+  constant:
+    "true false null nil None undefined; ALL_CAPS constants in Python or Rust; CSS colours like #fff and keyword values. Not this/self, not ALL_CAPS in TS/JS/Go.",
+  operator:
+    "Operators and punctuation outside strings and comments: + - * / = < > ! & | ^ ~ ? : . , ; [ ] { } and ( ) except the TS/JS call/condition/grouping parens (plain); not a hyphen inside a CSS identifier; shell's $ { } of an expansion outside quotes; a template literal's ${ and }.",
+};
+
+export const TASK_COMPACT =
+  "Classify this source part for syntax highlighting as a TextMate highlighter (Shiki) would. A word inside a string or comment takes that class. A part is one word run or one symbol; multi-character operators arrive one character at a time.";
+
+/** A few words per class, for the `lean` style. */
+export const LEAN_CRITERIA: Record<TokenClass, string> = {
+  plain: "identifier or default text",
+  comment: "comment",
+  string: "string or docstring literal",
+  number: "number literal",
+  keyword: "keyword or tag name",
+  type: "type or CSS property name",
+  function: "function name",
+  constant: "language constant",
+  operator: "operator or punctuation",
+};
+
+export const TASK_LEAN = "Label this part for syntax highlighting, following the task and legend in the state.";
+
+export const TASK_LEGEND = `${TASK} The exact definition of each label is under \`legend\` in the state; the criteria here are only reminders.`;
+
+export function taskFor(style: QuestionStyle, filename: string | null): string {
+  if (style === "lean") return TASK_LEAN;
+  const base = style === "legend" ? TASK_LEGEND : style === "compact" ? TASK_COMPACT : TASK;
+  return filename ? `${base} The file is named ${filename}; use the name only as a hint to the language.` : base;
+}
+
+export function criteriaFor(style: QuestionStyle): Record<TokenClass, string> {
+  if (style === "lean") return { ...LEAN_CRITERIA };
+  if (style === "legend") return { ...SHORT_CRITERIA };
+  if (style === "compact") return { ...COMPACT_CRITERIA };
+  return { ...CRITERIA };
+}
+
 /** The one clause the optional file-name hint adds. Nothing is derived from the name locally. */
 export function taskNamed(path: string): string {
-  return `${TASK} The file is named ${path}; use the name only as a hint to the language.`;
+  return taskFor("full", path);
 }
 
 /**
@@ -72,6 +156,6 @@ export const SCOPES: Record<TokenClass, readonly string[]> = {
 
 /** Identity of this contract, for cache keys and recordings. */
 export const CLASSES_HASH = createHash("sha256")
-  .update(JSON.stringify({ TOKEN_CLASSES, CRITERIA, TASK, SCOPES }))
+  .update(JSON.stringify({ TOKEN_CLASSES, CRITERIA, TASK, SCOPES, SHORT_CRITERIA, TASK_LEGEND, LEAN_CRITERIA, TASK_LEAN, COMPACT_CRITERIA, TASK_COMPACT }))
   .digest("hex")
   .slice(0, 16);

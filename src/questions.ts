@@ -4,7 +4,7 @@
  * request's state. Thresholds never appear here — a cutoff is a
  * decision the caller makes from the answer.
  */
-import { CRITERIA, TASK, taskNamed } from "./classes.ts";
+import { criteriaFor, taskFor, type QuestionStyle } from "./classes.ts";
 import type { ChoiceQuestion } from "./jev.ts";
 import type { Part } from "./split.ts";
 
@@ -66,12 +66,13 @@ export function buildQuestion(
   id: string,
   at: Position,
   filename: string | null,
+  style: QuestionStyle = "full",
 ): ChoiceQuestion {
   const { before, after } = contextOf(code, part);
   return {
     type: "choice",
     instructions: {
-      task: filename ? taskNamed(filename) : TASK,
+      task: taskFor(style, filename),
       subject: id,
       line: at.line,
       col: at.col,
@@ -79,7 +80,7 @@ export function buildQuestion(
       before,
       after,
     },
-    criteria: { ...CRITERIA },
+    criteria: criteriaFor(style),
   };
 }
 

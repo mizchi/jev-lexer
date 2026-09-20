@@ -7,7 +7,7 @@
  * a failure would look like success, so the count is part of the
  * result and the CLI turns it into a non-zero exit.
  */
-import { isTokenClass } from "./classes.ts";
+import { isTokenClass, type QuestionStyle } from "./classes.ts";
 import { cacheKey, type AnswerCache } from "./cache.ts";
 import { DEFAULT_CONCURRENCY, Jev, JevError, mapLimit, type AskClient, type Question, type Spend } from "./jev.ts";
 import { mergeSpans, type PartLabel, type Span } from "./merge.ts";
@@ -22,6 +22,8 @@ export interface LexOptions {
   minConfidence?: number;
   /** Optional hint, e.g. "src/app.tsx". Nothing is inferred from it locally. */
   filename?: string | null;
+  /** How the class definitions travel: repeated per question (`full`) or once per request (`legend`). */
+  style?: QuestionStyle;
   concurrency?: number;
 }
 
@@ -39,7 +41,8 @@ export interface LexResult {
 export async function lex(code: string, opts: LexOptions = {}): Promise<LexResult> {
   const parts = splitParts(code);
   const filename = opts.filename ?? null;
-  const plan = buildPlan(code, parts, { filename });
+  const style = opts.style ?? "full";
+  const plan = buildPlan(code, parts, { filename, style });
   const client = opts.client ?? new Jev();
   const cache = opts.cache ?? null;
   const lineStarts = lineStartsOf(code);
@@ -49,14 +52,14 @@ export async function lex(code: string, opts: LexOptions = {}): Promise<LexResul
 
   await mapLimit(plan.batches, opts.concurrency ?? DEFAULT_CONCURRENCY, async (batch) => {
     const window = plan.windows[batch.window]!;
-    const state = stateOf(window, filename);
+    const state = stateOf(window, filename, style);
     const questions: Record<string, Question> = {};
     const pending: Array<{ index: number; id: string; key: string }> = [];
     for (const index of batch.parts) {
       const part = parts[index]!;
       const at = locate(part, lineStarts);
       const id = questionId(index);
-      const q = buildQuestion(code, part, id, { line: at.line - window.firstLine + 1, col: at.col }, filename);
+      const q = buildQuestion(code, part, id, { line: at.line - window.firstLine + 1, col: at.col }, filename, style);
       const key = cacheKey(client.model, state, q);
       const hit = cache?.get(key);
       if (hit) {

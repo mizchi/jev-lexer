@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * jev-lexer <file> [--html|--ansi|--json] [--theme name] [--no-filename]
+ * jev-lexer <file> [--html|--ansi|--json] [--theme name] [--no-filename] [--style full|legend]
  *                  [--dry-run] [--cache path|--no-cache] [--compare [--lang id]]
- * jev-lexer eval  [--replay] [--repeat N]
+ * jev-lexer eval  [--replay] [--repeat N] [--arms bare,named] [--style full|legend] [--out path]
  * jev-lexer bench [--replay]
  *
  * Exit codes: 0 ok, 2 configuration error (no key, bad theme, missing
@@ -11,7 +11,7 @@
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { AnswerCache } from "./cache.ts";
-import type { TokenClass } from "./classes.ts";
+import { QUESTION_STYLES, type QuestionStyle, type TokenClass } from "./classes.ts";
 import { usdFor } from "./estimate.ts";
 import { API_KEY_VARS, Jev, JevError, fromEnv } from "./jev.ts";
 import { lex } from "./lex.ts";
@@ -38,6 +38,8 @@ export interface CliArgs {
   repeat: number;
   minConfidence: number;
   arms: string[];
+  style: QuestionStyle;
+  out: string | null;
 }
 
 export function parseCli(argv: string[]): CliArgs {
@@ -59,6 +61,8 @@ export function parseCli(argv: string[]): CliArgs {
       repeat: { type: "string", default: "1" },
       "min-confidence": { type: "string", default: "0" },
       arms: { type: "string", default: "bare,named" },
+      style: { type: "string", default: "full" },
+      out: { type: "string" },
     },
   });
   const first = positionals[0] ?? null;
@@ -78,6 +82,8 @@ export function parseCli(argv: string[]): CliArgs {
     repeat: Math.max(1, Number.parseInt(values.repeat!, 10) || 1),
     minConfidence: Number.parseFloat(values["min-confidence"]!) || 0,
     arms: values.arms!.split(",").map((a) => a.trim()).filter(Boolean),
+    style: (QUESTION_STYLES as readonly string[]).includes(values.style!) ? (values.style as QuestionStyle) : "full",
+    out: values.out ?? null,
   };
 }
 
@@ -106,7 +112,7 @@ async function highlight(args: CliArgs): Promise<number> {
   });
   const filename = args.filename ? file : null;
   if (args.dryRun) {
-    const plan = buildPlan(code, splitParts(code), { filename });
+    const plan = buildPlan(code, splitParts(code), { filename, style: args.style });
     const asked = plan.batches.reduce((n, b) => n + b.parts.length, 0);
     process.stdout.write(
       `${plan.windows.length} window(s), ${plan.batches.length} request(s), ${asked} question(s), ${plan.skipped} skipped\n` +
@@ -122,7 +128,7 @@ async function highlight(args: CliArgs): Promise<number> {
   );
   const cache = args.cache ? await AnswerCache.open(args.cache) : null;
   const client = new Jev();
-  const result = await lex(code, { client, cache, filename, minConfidence: args.minConfidence });
+  const result = await lex(code, { client, cache, filename, minConfidence: args.minConfidence, style: args.style });
   await cache?.save();
   const format: Format = args.format ?? (process.stdout.isTTY ? "ansi" : "html");
   if (args.compare) {

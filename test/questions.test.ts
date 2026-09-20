@@ -51,3 +51,19 @@ test("readChoice tolerates junk", () => {
   assert.equal(readChoice({ q0: { type: "score", value: 1 } }, "q0"), null);
   assert.equal(readChoice(undefined, "q0"), null);
 });
+
+import { SHORT_CRITERIA, TASK_LEGEND } from "../src/classes.ts";
+import { stateOf } from "../src/plan.ts";
+
+test("legend style: short criteria in the question, full definitions in the state", () => {
+  const parts = splitParts(code);
+  const answer = parts.find((p) => p.text === "answer")!;
+  const q = buildQuestion(code, answer, "q00002", { line: 1, col: 7 }, null, "legend");
+  assert.deepEqual(q.criteria, SHORT_CRITERIA);
+  assert.equal(q.instructions.task, TASK_LEGEND);
+  const w = { text: "x", firstLine: 1, start: 0, end: 1, oversized: false };
+  const state = stateOf(w, "a.ts", "legend");
+  assert.deepEqual(Object.keys(state), ["legend", "path", "source"]);
+  assert.deepEqual(state.legend, CRITERIA);
+  assert.equal("legend" in stateOf(w, null, "full"), false);
+});

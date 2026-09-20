@@ -45,7 +45,7 @@ export async function runBench(args: CliArgs): Promise<number> {
     `Corpus: ${files.length} files under eval/corpus. Truth: Shiki 4.4.3 with the true language, scopes normalized with gpu-lexer's classFromScopes. Scored over jev-lexer's non-whitespace parts, majority class per part.`,
   );
   lines.push(
-    `jev-lexer recording: model ${rec.model ?? "?"}, ${rec.date}, repeat ${rec.repeat}. gpu-lexer: ${hasGpu ? "promoted checkpoint, int6 weights, CPU via packages/training/src/tree-model.js" : "not available (submodule missing)"}.`,
+    `jev-lexer recording: model ${rec.model ?? "?"}, style ${rec.style ?? "full"}, ${rec.date}, repeat ${rec.repeat}. gpu-lexer: ${hasGpu ? "promoted checkpoint, int6 weights, CPU via packages/training/src/tree-model.js" : "not available (submodule missing)"}.`,
   );
   lines.push("");
   lines.push("| system | agreement | macro F1 | plain false-colour | wall clock | cost |");

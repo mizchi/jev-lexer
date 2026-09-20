@@ -7,7 +7,7 @@
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import type { CliArgs } from "../src/cli.ts";
-import { CLASSES_HASH, type TokenClass } from "../src/classes.ts";
+import { CLASSES_HASH, type QuestionStyle, type TokenClass } from "../src/classes.ts";
 import { API_KEY_VARS, Jev, fromEnv, type Spend } from "../src/jev.ts";
 import { lex } from "../src/lex.ts";
 import { splitParts } from "../src/split.ts";
@@ -47,6 +47,7 @@ export interface Recording {
   model: string | null;
   classesHash: string;
   repeat: number;
+  style: QuestionStyle;
   /** arm → file → per-part predicted label (null for whitespace / unanswered) */
   labels: Record<Arm, Record<string, Array<TokenClass | null>>>;
   unanswered: Record<Arm, number>;
@@ -85,7 +86,7 @@ function spendDelta(after: Spend, before: Spend): Spend {
   };
 }
 
-export async function record(files: CorpusFile[], repeat: number, arms: Arm[] = ARMS): Promise<Recording> {
+export async function record(files: CorpusFile[], repeat: number, arms: Arm[] = ARMS, style: QuestionStyle = "full"): Promise<Recording> {
   const client = new Jev();
   const labels = { bare: {}, named: {} } as Recording["labels"];
   const unanswered = { bare: 0, named: 0 };
@@ -95,7 +96,7 @@ export async function record(files: CorpusFile[], repeat: number, arms: Arm[] = 
     for (const f of files) {
       const passes: Array<Array<TokenClass | null>> = [];
       for (let r = 0; r < repeat; r++) {
-        const res = await lex(f.code, { client, filename: arm === "named" ? f.rel : null, cache: null });
+        const res = await lex(f.code, { client, filename: arm === "named" ? f.rel : null, cache: null, style });
         unanswered[arm] += res.unanswered;
         passes.push(res.labels.map((l) => l?.type ?? null));
       }
@@ -110,6 +111,7 @@ export async function record(files: CorpusFile[], repeat: number, arms: Arm[] = 
     model: client.servedModel,
     classesHash: CLASSES_HASH,
     repeat,
+    style,
     labels,
     unanswered,
     spent,
@@ -150,7 +152,7 @@ const pct = (x: number) => `${(x * 100).toFixed(2)}%`;
 
 export function renderReport(rec: Recording, report: Record<Arm, ArmReport>): string {
   const lines: string[] = [];
-  lines.push(`model ${rec.model ?? "?"}, classes ${rec.classesHash}, ${rec.date}, repeat ${rec.repeat}`);
+  lines.push(`model ${rec.model ?? "?"}, classes ${rec.classesHash}, style ${rec.style ?? "full"}, ${rec.date}, repeat ${rec.repeat}`);
   lines.push("");
   lines.push("| arm | supervised parts | agreement | macro F1 | plain false-colour | unanswered | requests | input tokens | USD | ms |");
   lines.push("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
@@ -191,9 +193,10 @@ export async function runEval(args: CliArgs): Promise<number> {
     process.stderr.write(`no corpus under ${CORPUS_DIR}\n`);
     return 2;
   }
+  const target = args.out ?? BASELINE;
   let rec: Recording;
   if (args.replay) {
-    rec = JSON.parse(await readFile(BASELINE, "utf8")) as Recording;
+    rec = JSON.parse(await readFile(target, "utf8")) as Recording;
     if (rec.classesHash !== CLASSES_HASH) {
       process.stderr.write(`warning: baseline was recorded under classes ${rec.classesHash}, current is ${CLASSES_HASH}\n`);
     }
@@ -203,9 +206,9 @@ export async function runEval(args: CliArgs): Promise<number> {
       return 2;
     }
     const arms = args.arms.filter((a): a is Arm => (ARMS as string[]).includes(a));
-    rec = await record(files, args.repeat, arms);
-    await writeFile(BASELINE, JSON.stringify(rec));
-    process.stderr.write(`recorded ${BASELINE}\n`);
+    rec = await record(files, args.repeat, arms, args.style);
+    await writeFile(target, JSON.stringify(rec));
+    process.stderr.write(`recorded ${target}\n`);
   }
   const report = await scoreRecording(files, rec);
   process.stdout.write(renderReport(rec, report));

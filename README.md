@@ -72,10 +72,11 @@ jev-lexer <file>                 ANSI when stdout is a TTY, HTML otherwise
   --html | --ansi | --json       force a format (json = spans)
   --theme <name>                 a @shikijs/themes name; default github-dark
   --no-filename                  do not pass the file name as a hint
+  --style full|compact           how much of the criteria each question carries (default full)
   --dry-run                      print the plan and the estimated price, send nothing
   --cache <path> | --no-cache    answer cache; default .jev-lexer-cache.json
   --compare [--lang <id>]        three panes: Shiki (needs --lang), jev-lexer, gpu-lexer
-jev-lexer eval [--replay] [--repeat N] [--arms bare,named]
+jev-lexer eval [--replay] [--repeat N] [--arms bare,named] [--style …] [--out path]
 jev-lexer bench [--replay]
 ```
 
@@ -122,6 +123,14 @@ parts) plans at ~693k tokens ≈ $0.029 with `--dry-run`; the 50-line
 orders of magnitude above gpu-lexer's cost of nothing, and it is the
 price of asking a general model instead of training a small one. The
 answer cache makes a repeated highlight free.
+
+Moving the definitions out of the questions was measured and does not
+work: with the criteria in the request's state and a one-line reminder
+per question the price falls 2.5–4.6× and agreement falls 5.5 points,
+because the model reads the rules from `criteria` and not from the
+state. `--style compact` keeps every rule in fewer words for 30% off
+and two points; the table is in
+[`eval/experiments/README.md`](eval/experiments/README.md).
 
 ## Numbers
 

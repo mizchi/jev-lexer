@@ -12,6 +12,7 @@
  * Per-line costs are summed through prefix sums, so planning a large
  * file is linear; the estimator is the same one the client uses.
  */
+import { CRITERIA, TASK, type QuestionStyle } from "./classes.ts";
 import { REQUEST_BUDGET, STATE_BUDGET, estimateTokens } from "./estimate.ts";
 import { buildQuestion, lineStartsOf, locate, questionId } from "./questions.ts";
 import { isAskable, type Part } from "./split.ts";
@@ -45,8 +46,20 @@ export interface Plan {
   estimatedTokens: number;
 }
 
-export function stateOf(window: Window, filename: string | null): Record<string, unknown> {
-  return filename ? { path: filename, source: window.text } : { source: window.text };
+export function stateOf(window: Window, filename: string | null, style: QuestionStyle = "full"): Record<string, unknown> {
+  const state: Record<string, unknown> = {};
+  if (style === "lean") {
+    state.task = filename ? `${TASK} The file is named ${filename}; use the name only as a hint to the language.` : TASK;
+  }
+  if (style === "legend" || style === "lean") state.legend = { ...CRITERIA };
+  if (filename) state.path = filename;
+  state.source = window.text;
+  return state;
+}
+
+export interface PlanOptions {
+  filename?: string | null;
+  style?: QuestionStyle;
 }
 
 interface Line {
@@ -63,9 +76,11 @@ function linesOf(code: string): Line[] {
   });
 }
 
-export function buildPlan(code: string, parts: Part[], opts: { filename?: string | null }): Plan {
+export function buildPlan(code: string, parts: Part[], opts: PlanOptions): Plan {
   const filename = opts.filename ?? null;
-  const pathCost = filename ? estimateTokens(filename) + 4 : 0;
+  const style = opts.style ?? "full";
+  // What the state costs beyond the source: the path, and the legend when the style carries one.
+  const pathCost = (filename ? estimateTokens(filename) + 4 : 0) + (style === "legend" || style === "lean" ? estimateTokens(CRITERIA) + estimateTokens(TASK) + 12 : 0);
   const budget = STATE_BUDGET - STATE_OVERHEAD - pathCost;
   const lines = linesOf(code);
   const n = lines.length;
@@ -108,7 +123,7 @@ export function buildPlan(code: string, parts: Part[], opts: { filename?: string
     const core = cores[w]!;
     const coreStart = lines[core.from]!.start;
     const coreEnd = lines[core.to - 1]!.end;
-    const stateTokens = estimateTokens(stateOf(win, filename));
+    const stateTokens = estimateTokens(stateOf(win, filename, style));
     let current: Batch = { window: w, parts: [] };
     let used = stateTokens;
     while (p < parts.length && parts[p]!.start < coreEnd) {
@@ -121,7 +136,7 @@ export function buildPlan(code: string, parts: Part[], opts: { filename?: string
       }
       const at = locate(part, lineStarts);
       // Context comes from the file (offsets are file offsets); the window is only the state.
-      const q = buildQuestion(code, part, questionId(p - 1), { line: at.line - win.firstLine + 1, col: at.col }, filename);
+      const q = buildQuestion(code, part, questionId(p - 1), { line: at.line - win.firstLine + 1, col: at.col }, filename, style);
       const qTokens = estimateTokens(q);
       if (current.parts.length > 0 && used + qTokens > REQUEST_BUDGET) {
         batches.push(current);
