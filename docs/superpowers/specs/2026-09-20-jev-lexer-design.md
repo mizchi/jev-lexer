@@ -24,8 +24,10 @@ Package name: `jev-lexer`. Node ≥ 24, TypeScript, pnpm, pkfire.
 
 - Parsing, semantic analysis, or anything a wrong label would make
   dangerous. Display only.
-- Language detection. No language hint is accepted (decided: keep the
-  gpu-lexer condition so the comparison is fair).
+- Language detection, and no language *id* argument. The only hint is
+  an optional file name (`filename`), because that is what a caller
+  usually has; the eval measures with and without it so the
+  hint-free number stays comparable with gpu-lexer.
 - Browser support. Jev is a remote API with a key; this runs in Node.
 - Richer taxonomies than nine classes. Measured first; extended later
   only if the eval says the nine are the ceiling.
@@ -37,7 +39,7 @@ Package name: `jev-lexer`. Node ≥ 24, TypeScript, pnpm, pkfire.
 | Shiki compatibility layer | both: `ThemedToken[][]` and HTML |
 | class granularity | gpu-lexer's nine: plain, comment, string, number, keyword, type, function, constant, operator |
 | eval oracle | Shiki, scopes normalized with gpu-lexer's `classFromScopes` |
-| language hint | never |
+| language hint | no language id; optional `filename`, and the eval reports both arms |
 | deliverable | npm library + CLI; eval and benchmark commands; no demo page |
 | classification strategy | one `choice` question per non-whitespace part, state = whole file (approach A) |
 | extra | ANSI terminal output, `--compare` against Shiki and gpu-lexer |
@@ -117,6 +119,7 @@ export interface LexOptions {
   client?: AskClient;        // default: new Jev() from the environment
   cache?: AnswerCache | null;
   minConfidence?: number;    // below this a part becomes plain; default 0
+  filename?: string;         // optional hint, e.g. "src/app.tsx"; never inferred
 }
 
 export function splitParts(code: string): Part[];
@@ -198,11 +201,15 @@ newlines are never asked; they are `plain`.
 `before` / `after` are up to 24 code units of the same line on either
 side. Question ids are positional (`q0000`…) so answers map back by
 index. The task sentence and criteria are frozen text in `classes.ts`;
-their hash is part of the cache key.
+their hash is part of the cache key. When `filename` is given the task
+sentence gains one clause: `The file is named <path>; use the name only
+as a hint to the language.`
 
 ### plan.ts
 
-State is `{ source }`. Jev's ceilings: state < 32Ki tokens, whole
+State is `{ source }`, or `{ path, source }` when `filename` was given —
+the path is the whole hint, nothing is derived from it locally. Jev's
+ceilings: state < 32Ki tokens, whole
 request < 64Ki tokens. Token estimation is the same heuristic jev-lint
 uses (characters / 4 plus JSON overhead), deliberately approximate,
 because the client reacts to the server's `max_tokens_exceeded` by
@@ -265,6 +272,7 @@ jev-lexer <file>                 highlight; ANSI when stdout is a TTY, HTML othe
   --theme <name>                 a @shikijs/themes name; default github-dark
   --compare                      three panes: shiki (needs --lang), jev-lexer, gpu-lexer (if vendored)
   --lang <id>                    only for --compare's shiki pane
+  --no-filename                  do not pass the file name to Jev (the default passes it)
   --dry-run                      print the plan and estimated cost, send nothing
   --cache <path> | --no-cache
 jev-lexer eval [--replay] [--repeat N]
@@ -309,6 +317,11 @@ only, like gpu-lexer's "supervised parts":
 - confusion matrix, and per-language breakdown
 - Jev spend: requests, input tokens, USD, wall clock
 
+Every metric is reported for two arms, `bare` (no hint) and `named`
+(`filename` passed), from the same corpus, so the value of the hint is
+one column difference. The `bare` arm is the one comparable with
+gpu-lexer.
+
 `eval/baseline.json` records answers, metrics and the class-definition
 hash. `jev-lexer eval --replay` recomputes from it without a key; CI
 runs the replay. The first KPI is that the numbers exist and are
@@ -321,7 +334,7 @@ the caveat that the corpora differ.
 
 1. Shiki with the true language — the oracle, also shown as the "correct"
    rendering
-2. jev-lexer
+2. jev-lexer, `bare` and `named` arms
 3. gpu-lexer, run on the CPU through its vendored
    `packages/training/src/tree-model.js` and the tracked float
    checkpoint under `packages/training/active/`
@@ -356,7 +369,8 @@ first.
   nesting, same class names, same colour for tokens whose class maps to
   the same scope).
 - `lex`: end-to-end through a fake `AskClient` that answers from a
-  table, asserting spans and `unanswered`.
+  table, asserting spans and `unanswered`; with `filename`, the fake
+  asserts the path reached the state and the task sentence.
 - `cache`: hit/miss, key changes when the class definitions change.
 - `eval --replay` and `bench --replay` run in CI from committed
   recordings.
