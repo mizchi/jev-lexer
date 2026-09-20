@@ -3,8 +3,12 @@
     "target": "es2023",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "lib": ["es2023"],
-    "types": ["node"],
+    "lib": [
+      "es2023"
+    ],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -17,5 +21,15 @@
     "rootDir": ".",
     "skipLibCheck": true
   },
-  "include": ["src", "eval", "bench/*.ts"]
+  "include": [
+    "src",
+    "eval",
+    "bench/*.ts"
+  ],
+  "exclude": [
+    "eval/corpus",
+    "node_modules",
+    "dist",
+    "bench/vendor"
+  ]
 }

@@ -1,0 +1,25 @@
+{
+  "name": "example-site",
+  "version": "1.4.0",
+  "description": "Config for the demo. See https://example.com/docs/config - return values while true",
+  "port": 8080,
+  "ratio": 1.5e-3,
+  "retries": 3,
+  "enabled": true,
+  "legacy": null,
+  "tags": ["web", "const", "if", "42"],
+  "limits": {
+    "maxBodyBytes": 1048576,
+    "timeoutMs": 30000,
+    "utf8Only": false
+  },
+  "routes": [
+    { "path": "/v1/health", "method": "GET", "handler": "health" },
+    { "path": "/v1/items/{id}", "method": "POST", "handler": "createItem" }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "LOG_LEVEL": "info",
+    "FEATURE_FLAGS": "a + b, c => d"
+  }
+}

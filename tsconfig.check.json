@@ -1,5 +1,18 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": true },
-  "include": ["src", "test", "eval", "bench/*.ts"]
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "src",
+    "test",
+    "eval",
+    "bench/*.ts"
+  ],
+  "exclude": [
+    "eval/corpus",
+    "node_modules",
+    "dist",
+    "bench/vendor"
+  ]
 }

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- Landing page. Docs: https://example.com/docs/page -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Example - return while if 42</title>
+  <link rel="stylesheet" href="/layout.css">
+  <style>
+    .hero { padding: 2rem 0; }
+    .hero h1 { font-size: 2.5rem; }
+  </style>
+</head>
+<body>
+  <!--
+    The header is sticky on wide screens only.
+    See layout.css for the breakpoint.
+  -->
+  <header class="site-header" data-version="1.4.0">
+    <nav aria-label="Main">
+      <a href="/">Home</a>
+      <a href="/docs" class="utf8Link">Docs</a>
+      <a href="https://example.com/blog">Blog</a>
+    </nav>
+  </header>
+  <main id="main">
+    <section class="hero">
+      <h1>Ship in 42 seconds</h1>
+      <p>Port 8080 is the default; set <code>PORT</code> to change it. a + b =&gt; c</p>
+      <button type="button" data-count="0x10" disabled>Start</button>
+    </section>
+    <form action="/subscribe" method="post">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" required placeholder="you@example.com">
+      <input type="hidden" name="ratio" value="1e-3">
+    </form>
+  </main>
+  <script type="module">
+    const MAX_TRIES = 3;
+    const button = document.querySelector("button");
+    button.addEventListener("click", () => {
+      button.textContent = `Started at ${new Date().toISOString()}`; // TODO: call start() here
+    });
+  </script>
+</body>
+</html>
