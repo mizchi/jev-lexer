@@ -39,6 +39,13 @@ local evalReplay: Task = new {
   inputs { "src/**/*.ts"; "eval/**/*" }
 }
 
+local benchReplay: Task = new {
+  name = "bench:replay"
+  description = "Print the benchmark from the recording, do not rewrite report.md"
+  cmd = "node --experimental-strip-types src/cli.ts bench --replay"
+  inputs { "src/**/*.ts"; "eval/**/*"; "bench/*.ts" }
+}
+
 local secretlint: Task = new {
   name = "lint:secretlint"
   description = "Run secretlint against files in the diff about to be pushed"
@@ -66,10 +73,10 @@ local secretlint: Task = new {
 
 local ci: Task = new {
   name = "ci"
-  description = "typecheck + test + build + eval replay"
+  description = "typecheck + test + build + eval replay + bench replay"
   cmd = "echo ci ok"
   cache = false
-  deps { typecheck; test; build; evalReplay }
+  deps { typecheck; test; build; evalReplay; benchReplay }
 }
 
 local prePush: Task = new {
@@ -80,4 +87,4 @@ local prePush: Task = new {
   deps { secretlint; typecheck; test }
 }
 
-tasks { typecheck; test; build; evalReplay; secretlint; ci; prePush }
+tasks { typecheck; test; build; evalReplay; benchReplay; secretlint; ci; prePush }
