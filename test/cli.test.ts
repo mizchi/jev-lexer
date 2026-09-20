@@ -28,3 +28,15 @@ test("loadTheme resolves a @shikijs/themes name", async () => {
   assert.equal(t.name, "github-dark");
   await assert.rejects(loadTheme("no-such-theme"), /theme/);
 });
+
+import { comparePanes } from "../src/cli.ts";
+import githubDark from "@shikijs/themes/github-dark";
+import { resolveTheme } from "../src/tokens.ts";
+
+test("comparePanes labels each pane and includes the correct one when a lang is given", async () => {
+  const theme = resolveTheme(githubDark);
+  const out = await comparePanes("const x = 1\n", { lang: "ts", theme, spans: [], gpu: null });
+  assert.ok(out.includes("== shiki (ts)"));
+  assert.ok(out.includes("== jev-lexer"));
+  assert.ok(!out.includes("== gpu-lexer"));
+});

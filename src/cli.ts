@@ -11,10 +11,11 @@
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { AnswerCache } from "./cache.ts";
+import type { TokenClass } from "./classes.ts";
 import { usdFor } from "./estimate.ts";
 import { API_KEY_VARS, Jev, JevError, fromEnv } from "./jev.ts";
 import { lex } from "./lex.ts";
-import type { Span } from "./merge.ts";
+import { mergeSpans, type Span } from "./merge.ts";
 import { buildPlan } from "./plan.ts";
 import { splitParts } from "./split.ts";
 import { resolveTheme, toThemedTokens, type ThemeRegistrationAny, type ThemeRegistrationResolved } from "./tokens.ts";
@@ -137,9 +138,29 @@ async function highlight(args: CliArgs): Promise<number> {
   return result.unanswered > 0 ? 3 : 0;
 }
 
-/** Filled in by the compare task; until then compare renders only our pane. */
-async function renderCompare(code: string, _args: CliArgs, theme: ThemeRegistrationResolved, spans: Span[]): Promise<string> {
-  return `== jev-lexer\n${tokensToAnsi(toThemedTokens(code, spans, theme))}\n`;
+export async function comparePanes(
+  code: string,
+  o: { lang: string | null; theme: ThemeRegistrationResolved; spans: Span[]; gpu: TokenClass[] | null },
+): Promise<string> {
+  const panes: string[] = [];
+  if (o.lang) {
+    const { oracleTokens } = await import("../eval/oracle.ts");
+    const tokens = await oracleTokens(code, o.lang, o.theme.name);
+    panes.push(`== shiki (${o.lang})\n${tokensToAnsi(tokens)}`);
+  }
+  panes.push(`== jev-lexer\n${tokensToAnsi(toThemedTokens(code, o.spans, o.theme))}`);
+  if (o.gpu) {
+    const parts = splitParts(code);
+    const labels = parts.map((p) => ({ type: o.gpu![p.start] ?? "plain", confidence: 1 }));
+    panes.push(`== gpu-lexer\n${tokensToAnsi(toThemedTokens(code, mergeSpans(parts, labels), o.theme))}`);
+  }
+  return panes.join("\n\n") + "\n";
+}
+
+async function renderCompare(code: string, args: CliArgs, theme: ThemeRegistrationResolved, spans: Span[]): Promise<string> {
+  const { gpuLexerAvailable, gpuLexerChars } = await import("../bench/gpu-lexer.ts");
+  const gpu = (await gpuLexerAvailable()) ? await gpuLexerChars(code) : null;
+  return comparePanes(code, { lang: args.lang, theme, spans, gpu });
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
