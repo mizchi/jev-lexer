@@ -44,6 +44,14 @@ export interface CliArgs {
   out: string | null;
 }
 
+export const USAGE = `usage:
+  jev-lexer <file> [--html|--ansi|--json] [--theme name] [--no-filename] [--style full|compact]
+                   [--dry-run] [--cache path|--no-cache] [--compare [--lang id]] [--min-confidence x]
+  jev-lexer eval  [--replay] [--repeat N] [--arms bare,named] [--style ...] [--out path]
+  jev-lexer bench [--replay]
+exit codes: 0 ok, 2 configuration error, 3 some parts got no answer
+`;
+
 export function parseCli(argv: string[]): CliArgs {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -65,8 +73,13 @@ export function parseCli(argv: string[]): CliArgs {
       arms: { type: "string", default: "bare,named" },
       style: { type: "string", default: "full" },
       out: { type: "string" },
+      help: { type: "boolean", short: "h", default: false },
     },
   });
+  if (values.help) {
+    process.stdout.write(USAGE);
+    process.exit(0);
+  }
   const first = positionals[0] ?? null;
   const command = first === "eval" || first === "bench" ? first : "highlight";
   const format: Format | null = values.html ? "html" : values.ansi ? "ansi" : values.json ? "json" : null;
@@ -107,7 +120,7 @@ class ExitError extends Error {
 }
 
 async function highlight(args: CliArgs): Promise<number> {
-  if (!args.file) throw new ExitError(2, "usage: jev-lexer <file> [--html|--ansi|--json] [--theme name]");
+  if (!args.file) throw new ExitError(2, USAGE.trimEnd());
   const file = args.file;
   const code = await readFile(file, "utf8").catch(() => {
     throw new ExitError(2, `cannot read ${file}`);
@@ -175,7 +188,13 @@ async function renderCompare(code: string, args: CliArgs, theme: ThemeRegistrati
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
-  const args = parseCli(argv);
+  let args: CliArgs;
+  try {
+    args = parseCli(argv);
+  } catch (err: unknown) {
+    process.stderr.write(`${(err as Error).message}\n${USAGE}`);
+    return 2;
+  }
   try {
     if (args.command === "eval" || args.command === "bench") {
       // Development commands: eval/ and bench/ ship in the repository, not in the npm package.
