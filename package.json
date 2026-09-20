@@ -1,7 +1,7 @@
 {
   "name": "jev-lexer",
   "version": "0.1.0",
-  "description": "Language-agnostic syntax highlighter: split like gpu-lexer, classify every part with Jev, render Shiki-compatible tokens, HTML and ANSI",
+  "description": "Experimental: gpu-lexer's split-classify-merge highlighting done with Jev instead of a trained model. Shiki-compatible output; not for production, use Shiki or tree-sitter",
   "keywords": [
     "syntax-highlighting",
     "shiki",

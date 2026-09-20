@@ -1,5 +1,17 @@
 # jev-lexer
 
+> **An experiment, not a product.** This is gpu-lexer's idea — split
+> mechanically, classify every part, merge — tried with Jev in place
+> of a trained model, to see how far a general model gets and what it
+> costs. It is not meant for production: every highlight is a paid
+> network round trip (about a cent per fifty lines), the result is not
+> deterministic across model versions, and a colour is wrong about one
+> part in twelve. For real highlighting use
+> [Shiki](https://shiki.style) when you know the language, or
+> [tree-sitter](https://tree-sitter.github.io) when you need a parse
+> as well; both are exact, local and free. This repository is worth
+> reading for the numbers and the method, not for the package.
+
 A language-agnostic syntax highlighter built on the idea behind
 [gpu-lexer](https://github.com/vercel-labs/gpu-lexer): split source
 mechanically into word runs and single symbols, classify every part into
@@ -199,11 +211,12 @@ Recordings for all four replay without a key from
 
 ## What it is not
 
-Display only. It is not a parser and it does not know the language; a
-wrong label costs a wrong colour and nothing else. It is not
-deterministic across model versions, and a label near a decision
-boundary can move between runs — commit the cache if the output must
-not change under you. It needs a network and a key.
+Not for production; see the note at the top — Shiki or tree-sitter are
+the tools for that. Display only: it is not a parser and it does not
+know the language; a wrong label costs a wrong colour and nothing else.
+It is not deterministic across model versions, and a label near a
+decision boundary can move between runs — commit the cache if the
+output must not change under you. It needs a network and a key.
 
 ## Development
 
