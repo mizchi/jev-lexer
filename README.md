@@ -124,13 +124,8 @@ orders of magnitude above gpu-lexer's cost of nothing, and it is the
 price of asking a general model instead of training a small one. The
 answer cache makes a repeated highlight free.
 
-Moving the definitions out of the questions was measured and does not
-work: with the criteria in the request's state and a one-line reminder
-per question the price falls 2.5–4.6× and agreement falls 5.5 points,
-because the model reads the rules from `criteria` and not from the
-state. `--style compact` keeps every rule in fewer words for 30% off
-and two points; the table is in
-[`eval/experiments/README.md`](eval/experiments/README.md).
+The cost lever is what each question carries, and it trades directly
+against accuracy — see [Question styles](#question-styles).
 
 ## Numbers
 
@@ -163,6 +158,34 @@ which is not this one — on these eight files it scores 90.30%.
 
 The file-name hint is worth about a quarter of a point. It changes
 where the errors fall more than how many there are.
+
+### Question styles
+
+`--style` (CLI) / `style` (`lex()`) chooses how much of the class
+definitions each question carries. Measured on the same corpus, bare
+arm, model `jev-1.13.0`, 2026-09-20; the last column is `--dry-run` on
+`eval/corpus/ts/session.ts` (72 lines, 603 parts):
+
+| style | what a question carries | what the state carries | agreement | macro F1 | plain false-colour | tokens / question | 8-file corpus | 72-line file |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `full` (default) | the full criteria, ~2,900 chars | source | **91.95%** | **89.45%** | 17.11% | ~1,070 | $0.178 | $0.029 |
+| `compact` | the same rules in ~1,800 chars | source | 89.90% | 87.56% | 17.47% | ~740 | $0.123 | $0.020 |
+| `legend` | a one-line reminder per class | source + the full criteria as `legend` | 86.50% | 84.67% | 25.67% | ~425 | $0.071 | $0.013 |
+| `lean` | a few words per class | source + `legend` + the task sentence | 86.32% | 82.43% | 24.42% | ~235 | $0.039 | $0.006 |
+
+Read down the table: each step saves 30–45% and costs two to five
+points, and the price is paid in exactly the conventions the criteria
+spell out — quotes and `${VAR}` inside shell strings, TypeScript's
+plain call parens, `<` as operator in HTML, docstrings as strings all
+revert to the model's own reading. `legend` and `lean` score the same
+although one keeps a sentence per class and the other a few words,
+which says the definitions are read from the question's `criteria` and
+not from the state: parking them there is not a saving, it is a
+removal. `compact` is the one to pick when price matters more than the
+last two points; below it the agreement falls under gpu-lexer's.
+
+Recordings for all four replay without a key from
+[`eval/experiments/`](eval/experiments/README.md).
 
 ## What it is not
 
